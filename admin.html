@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شاشة إدارة الغرفة الذكية</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { 
+            --bg-dark: #0b0f19; 
+            --card-surface: #1e293b; 
+            --accent-blue: #00b4d8; 
+            --accent-green: #2ec4b6; 
+            --accent-red: #e63946; 
+            --text-white: #f8fafc; 
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        
+        body { 
+            background-color: var(--bg-dark); 
+            color: var(--text-white); 
+            min-height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 5vh 5vw; 
+        }
+        
+        .workspace-box { 
+            background: var(--card-surface); 
+            padding: 35px; 
+            border-radius: 24px; 
+            width: 100%; 
+            max-width: 550px; 
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5); 
+            text-align: center; 
+        }
+        
+        .room-tag { display: inline-block; padding: 6px 16px; background: rgba(0, 180, 216, 0.12); color: var(--accent-blue); border-radius: 30px; font-size: 0.85rem; font-weight: 700; margin-bottom: 10px; }
+        h2 { font-size: calc(1.3rem + 0.5vw); color: #fff; }
+        p { color: #94a3b8; font-size: calc(0.9rem + 0.1vw); margin-top: 8px; margin-bottom: 20px; }
+        
+        .input-field { width: 100%; padding: 14px; background: #0f172a; border: 2px solid #334155; border-radius: 12px; color: #fff; font-size: 1rem; outline: none; margin-bottom: 15px; text-align: center; }
+        
+        .core-btn { width: 100%; padding: 15px; border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 600; cursor: pointer; color: #fff; transition: 0.2s; text-decoration: none; display: inline-block; }
+        .core-btn:hover { opacity: 0.9; transform: scale(0.99); }
+        
+        .btn-blue { background: var(--accent-blue); }
+        .btn-green { background: var(--accent-green); margin-bottom: 12px; }
+        .btn-red { background: var(--accent-red); margin-bottom: 12px; }
+        .btn-slate { background: #475569; margin-top: 15px; }
+        
+        .decision-buttons { display: flex; flex-direction: column; gap: 10px; }
+        
+        @media (min-width: 480px) {
+            .decision-buttons { flex-direction: row; }
+            .btn-green, .btn-red { flex: 1; margin-bottom: 0; }
+        }
+
+        .live-monitor { padding: 18px; border-radius: 14px; font-size: 1.1rem; font-weight: 600; margin-top: 20px; display: none; }
+        .qr-card-section { background: #0f172a; border-radius: 16px; padding: 20px; margin-top: 30px; }
+        
+        .qr-output-frame { 
+            display: inline-block; 
+            background: #fff; 
+            padding: 12px; 
+            border-radius: 14px; 
+            margin-top: 10px; 
+            max-width: 100%;
+        }
+        .qr-output-frame canvas, .qr-output-frame img {
+            max-width: 100%;
+            height: auto !important;
+        }
+
+        /* تنسيق واجهة الخطأ الذكية والزرار الجديد */
+        .error-view { display: none; padding: 10px; }
+        .btn-add-room { background: linear-gradient(135deg, #00b4d8 0%, #2ec4b6 100%); margin-top: 20px; box-shadow: 0 4px 15px rgba(0, 180, 216, 0.3); }
+    </style>
+</head>
+<body>
+
+<div class="workspace-box">
+    <div id="mainRoomContent">
+        <div class="header-area">
+            <span class="room-tag" id="roomIdentifier">تحميل...</span>
+            <h2 id="interfaceHeadline">نظام الغرفة الرقمي</h2>
+            <p id="interfaceSubtext">جاري مزامنة القنوات والاتصال بالسحابة...</p>
+        </div>
+
+        <div id="portalGuestView" style="display: none;">
+            <input type="text" id="visitorInputName" class="input-field" placeholder="اكتب اسمك هنا للتعريف...">
+            <button class="core-btn btn-blue" onclick="dispatchVisitorRequest()">🔔 إرسال طلب الدخول</button>
+            <div id="visitorStatusMonitor" class="live-monitor"></div>
+        </div>
+
+        <div id="portalOwnerView" style="display: none;">
+            <div id="adminConsoleAlert" style="margin-bottom: 20px; padding: 15px; border-radius: 12px; background: rgba(15, 23, 42, 0.4); font-size: 1.05rem;">
+                جاري قراءة خط البيانات...
+            </div>
+            
+            <div id="adminDecisionWrapper" class="decision-buttons" style="display: none;">
+                <button class="core-btn btn-green" onclick="executeOwnerDecision('accepted')">👍 قبول الدخول</button>
+                <button class="core-btn btn-red" onclick="executeOwnerDecision('denied')">👎 رفض الطلب</button>
+            </div>
+            
+            <button class="core-btn btn-slate" onclick="resetRoomToStableState()">🔄 إعادة ضبط الاستقرار</button>
+
+            <div class="qr-card-section">
+                <h4>كود الـ QR الخاص ببابك</h4>
+                <p>اطبع الكود ده على الباب عشان الضيوف يعملوا سكان بموبايلاتهم.</p>
+                <div class="qr-output-frame"><div id="qrRenderCanvas"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="errorRedirectView" class="error-view">
+        <span style="font-size: 3.5rem; display: block; margin-bottom: 15px;">⚠️</span>
+        <h2 style="color: var(--accent-red);">معرّف الغرفة غير موجود</h2>
+        <p>يبدو أنك دخلت إلى هذا المسار مباشرة دون تحديد اسم الغرفة أو حجزها من اللوحة الرئيسية.</p>
+        <a href="index.html" class="core-btn btn-add-room">➕ اضغط لإنشاء أو إضافة غرفة جديدة</a>
+    </div>
+</div>
+
+<script>
+    // ⚠️ حط بيانات الفايربيس الحقيقية هنا عشان يتم المزامنة بشكل صحيح
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY_HERE",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID_HERE",
+        appId: "YOUR_APP_ID_HERE"
+    };
+
+    // جلب البارامترات من الـ URL بشكل آمن ومتجاوب
+    const routingParameters = new URLSearchParams(window.location.search);
+    const activeRoomId = routingParameters.get('id');
+    const userRoleProfile = routingParameters.get('role'); 
+
+    // الفحص الذكي: لو الرابط باظ، اخفي الأخطاء البرمجية واظهر شاشة "إضافة غرفة" فوراً
+    if(!activeRoomId || !userRoleProfile) {
+        document.getElementById('mainRoomContent').style.display = 'none';
+        document.getElementById('errorRedirectView').style.display = 'block';
+    } else {
+        // تشغيل الفايربيس والسيستم لو الرابط سليم 100%
+        firebase.initializeApp(firebaseConfig);
+        const cloudDatabase = firebase.database();
+
+        document.getElementById('roomIdentifier').innerText = "ID: " + activeRoomId.toUpperCase();
+
+        if (userRoleProfile === 'owner') {
+            document.getElementById('interfaceHeadline').innerText = "لوحة الإدارة الداخلية";
+            document.getElementById('interfaceSubtext').innerText = "أنت متصل كمالك للنظام. تحكم بالطلبات بالأسفل.";
+            document.getElementById('portalOwnerView').style.display = 'block';
+            initializeOwnerStream();
+            compileAutomatedQR();
+        } else {
+            document.getElementById('interfaceHeadline').innerText = "بوابة طلب الدخول";
+            document.getElementById('interfaceSubtext').innerText = "يرجى تسجيل اسمك لإخطار صاحب الغرفة.";
+            document.getElementById('portalGuestView').style.display = 'block';
+            initializeGuestStream();
+        }
+    }
+
+    // --- كود الضيف الخارجي ---
+    function dispatchVisitorRequest() {
+        const name = document.getElementById('visitorInputName').value.trim();
+        if(name === "") return alert("اكتب اسمك أولاً!");
+
+        const monitorBox = document.getElementById('visitorStatusMonitor');
+        monitorBox.style.display = "block";
+        monitorBox.style.background = "#334155";
+        monitorBox.style.color = "#fff";
+        monitorBox.innerHTML = "⏳ جاري إرسال الطلب... انتظر الرد بالخارج.";
+
+        firebase.database().ref('all_rooms/' + activeRoomId).update({
+            guest_name: name,
+            current_status: 'pending'
+        });
+    }
+
+    function initializeGuestStream() {
+        const monitorBox = document.getElementById('visitorStatusMonitor');
+        firebase.database().ref('all_rooms/' + activeRoomId).on('value', (snapshot) => {
+            const data = snapshot.val();
+            if(!data || data.current_status === 'stable') {
+                monitorBox.style.display = "none";
+                return;
+            }
+            monitorBox.style.display = "block";
+            if(data.current_status === 'accepted') {
+                monitorBox.style.background = "rgba(46, 196, 182, 0.2)";
+                monitorBox.style.color = "var(--accent-green)";
+                monitorBox.innerHTML = `🎉 اتفضل ادخل يا ${data.guest_name}!`;
+            } else if (data.current_status === 'denied') {
+                monitorBox.style.background = "rgba(230, 57, 70, 0.2)";
+                monitorBox.style.color = "var(--accent-red)";
+                monitorBox.innerHTML = "🤫 عذراً، صاحب الغرفة مشغول حالياً.";
+            }
+        });
+    }
+
+    // --- كود المالك الداخلي ---
+    function initializeOwnerStream() {
+        const consoleAlert = document.getElementById('adminConsoleAlert');
+        const actionWrapper = document.getElementById('adminDecisionWrapper');
+
+        firebase.database().ref('all_rooms/' + activeRoomId).on('value', (snapshot) => {
+            const data = snapshot.val();
+            if(!data) return;
+
+            if(data.current_status === 'pending') {
+                consoleAlert.innerHTML = `🔔 طلب جديد: <strong>[ ${data.guest_name} ]</strong> واقف على الباب!`;
+                actionWrapper.style.display = 'flex';
+                try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-200.wav').play(); } catch(e){}
+            } else if(data.current_status === 'accepted') {
+                consoleAlert.innerHTML = `🟢 وافقت على دخول [ ${data.guest_name} ].`;
+                actionWrapper.style.display = 'none';
+            } else if(data.current_status === 'denied') {
+                consoleAlert.innerHTML = `🔴 رفضت دخول [ ${data.guest_name} ].`;
+                actionWrapper.style.display = 'none';
+            } else {
+                consoleAlert.innerHTML = "🟢 لا توجد طلبات معلقة حالياً.";
+                actionWrapper.style.display = 'none';
+            }
+        });
+    }
+
+    function executeOwnerDecision(finalStatus) {
+        firebase.database().ref('all_rooms/' + activeRoomId).update({ current_status: finalStatus });
+    }
+
+    function resetRoomToStableState() {
+        firebase.database().ref('all_rooms/' + activeRoomId).update({ current_status: 'stable', guest_name: 'none' });
+    }
+
+    function compileAutomatedQR() {
+        const currentUrl = window.location.href.split('?')[0];
+        const computedGuestPath = currentUrl + "?id=" + activeRoomId + "&role=guest";
+        
+        document.getElementById("qrRenderCanvas").innerHTML = "";
+        new QRCode(document.getElementById("qrRenderCanvas"), {
+            text: computedGuestPath,
+            width: 180,
+            height: 180
+        });
+    }
+</script>
+</body>
+</html>
