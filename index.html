@@ -3,116 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التحكم - إدارة الغرف</title>
+    <title>لوحة تحكم الغرفة - الأدمن</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            margin: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            background: #0f0f1a;
+            color: #00ffcc;
+            padding-top: 100px;
+            margin: 0;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
+        .dashboard {
+            border: 2px solid #00ffcc;
+            background: rgba(0, 255, 204, 0.03);
+            padding: 40px;
+            display: inline-block;
+            border-radius: 15px;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.2);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 { font-size: 32px; color: #fff; margin-bottom: 5px; }
+        .status { color: #00ffcc; font-size: 18px; font-weight: bold; margin-bottom: 25px; }
+        .room-box {
+            background: #1a1a2e;
+            padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .btn {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-        /* الفورم مخفي وبنديره يظهر بالـ JavaScript بدون تهنيج */
-        .room-form-container {
-            display: none;
-            margin-top: 20px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background-color: #fafafa;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
+            border: 1px solid #333;
+            font-size: 20px;
+            color: #ff007f;
             font-weight: bold;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
+            letter-spacing: 1px;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>لوحة تحكم الأدمن</h2>
-    <p>إدارة وإنشاء الغرف الجديدة في النظام.</p>
-    
-    <button class="btn" id="toggleRoomFormBtn">إضافة / إنشاء غرفة جديدة</button>
-
-    <div class="room-form-container" id="roomFormContainer">
-        <h3>بيانات الغرفة الجديدة</h3>
-        <form id="addRoomForm">
-            <div class="form-group">
-                <label for="roomName">اسم الغرفة:</label>
-                <input type="text" id="roomName" name="roomName" placeholder="أدخل اسم الغرفة هنا..." required>
-            </div>
-            <div class="form-group">
-                <label for="roomType">نوع الغرفة أو الوصف:</label>
-                <input type="text" id="roomType" name="roomType" placeholder="مثال: غرفة عامة، مناقشة...">
-            </div>
-            <button type="submit" class="btn" style="background-color: #28a745;">حفظ الغرفة ونشرها</button>
-        </form>
+    <div class="dashboard">
+        <h1>شاشة التحكم والأدمن 👑</h1>
+        <p class="status">● النظام يعمل ومتصل بنجاح</p>
+        
+        <div class="room-box" id="roomDisplay">
+            جاري التعرف على الغرفة...
+        </div>
     </div>
-</div>
 
-<script>
-    // السكربت المسؤول عن إظهار الجزء السفلي بسلاسة لمنع التهنيج
-    const toggleBtn = document.getElementById('toggleRoomFormBtn');
-    const formContainer = document.getElementById('roomFormContainer');
-    const addRoomForm = document.getElementById('addRoomForm');
-
-    toggleBtn.addEventListener('click', function() {
-        // لو مخفي يظهره، ولو ظاهر يخفيه
-        if (formContainer.style.display === 'none' || formContainer.style.display === '') {
-            formContainer.style.style.display = 'block';
+    <script>
+        // كود ذكي بيقرأ كود الأوضة اللي مبعوت من صفحة الـ index وبيظهره في الشاشة
+        const urlParams = new URLSearchParams(window.location.search);
+        const room = urlParams.get('room');
+        
+        if(room) {
+            document.getElementById('roomDisplay').innerText = "أنت الآن تتحكم في غرفة رقم: " + room;
         } else {
-            formContainer.style.display = 'none';
+            document.getElementById('roomDisplay').innerText = "خطأ: لم يتم تحديد غرفة بشكل صحيح!";
+            document.getElementById('roomDisplay').style.color = "red";
         }
-    });
-
-    // معالجة إرسال الفورم ومنع إعادة تحميل الصفحة بشكل عشوائي يسبب خطأ في المسار
-    addRoomForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const roomName = document.getElementById('roomName').value;
-        const roomType = document.getElementById('roomType').value;
-
-        // هنا بنربط مع الـ Backend أو Firebase بتاعك
-        console.log("جاري إضافة الغرفة:", { roomName, roomType });
-        
-        alert(`تمت إضافة الغرفة "${roomName}" بنجاح!`);
-        
-        // إعادة تصفير الفورم وإخفائه
-        addRoomForm.reset();
-        formContainer.style.display = 'none';
-    });
-</script>
+    </script>
 
 </body>
 </html>
